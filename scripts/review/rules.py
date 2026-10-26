@@ -380,6 +380,10 @@ _CODE_RUN = re.compile(r"(?:(?<![.\w])(?:eval|exec|compile)\s*\(|\bnew\s+Functio
                        r"__import__|\bimportlib\b|marshal\.loads|\bpickle\.loads?|"
                        r"\brunpy\b|types\.FunctionType)")
 _INSTALL_HOOK = "Runs its own code while it is being installed"
+# `.gitattributes` is everywhere (`* text=auto`). Over a whole tree it fails
+# only when it makes the reviewed archive differ from what an install
+# copies: files left out of the archive, rewritten in it, or filtered.
+_ARCHIVE_ATTRS = re.compile(r"(?:\bexport-ignore\b|\bexport-subst\b|\bfilter\s*=)")
 _HOOK_FILES = {"setup.py", "sitecustomize.py", "usercustomize.py"}
 _NPM_HOOKS = {"preinstall", "install", "postinstall", "prepare", "preprepare",
               "postprepare", "prepublish", "prepack", "postpack"}
@@ -441,12 +445,17 @@ def hard_hits(files) -> list:
 
     def only_fail(rule, detail, file, line=None, match="", level="hard"):
         if level == "hard" and rule in _FAIL_RULES:
+            if rule == "repo-files" and os.path.basename(file).lower() == ".gitattributes":
+                return  # judged by its content, below
             keep(rule, detail, file, line, match)
 
     tree = app_files(files)
     for e in tree:
         _scan_entry(only_fail, _tree_entry(e))
         _hook_hits(keep, e)
+        if os.path.basename(e["path"]).lower() == ".gitattributes" and \
+                (e["text"] is None or _ARCHIVE_ATTRS.search(fold(e["text"]))):
+            keep("repo-files", _KIND_DETAIL["repo-files"], e["path"])
         if e["text"] is None:
             continue
         doc = _is_doc(e["path"])

@@ -1,0 +1,11 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/hidden-extra.json",
+      "status": "added"
+    }
+  ],
+  "title": "List gitattributes-export-ignore",
+  "body": ""
+}

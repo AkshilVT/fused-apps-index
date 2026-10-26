@@ -5,11 +5,11 @@
 #
 # 1. Repo settings: squash merges only, auto-merge allowed, branches deleted
 #    after merge.
-# 2. The `main` ruleset: pull request required, required status check
+# 2. The review labels.
+# 3. The `main` ruleset: pull request required, required status check
 #    `review` (from GitHub Actions), no force pushes or deletion. Admins are
 #    bound by it (no admin bypass). The ONLY bypass actor is the GitHub
 #    Actions app, used by the reviews-sync job's bot commits to reviews/.
-# 3. The review labels.
 # 4. Reminder: the ANTHROPIC_API_KEY secret.
 set -euo pipefail
 
@@ -22,6 +22,11 @@ gh api -X PATCH "repos/$REPO" \
   -F allow_merge_commit=false \
   -F allow_rebase_merge=false \
   -F delete_branch_on_merge=true >/dev/null
+
+echo "== labels"
+gh label create review-passed      --repo "$REPO" --color 2da44e --description "The review check passed" --force
+gh label create needs-confirmation --repo "$REPO" --color d29922 --description "New powers: waiting for the author's fused: confirm" --force
+gh label create review-failed      --repo "$REPO" --color cf222e --description "The review check failed" --force
 
 APP_ID="$(gh api /apps/github-actions --jq .id)"   # 15368 on github.com
 echo "== GitHub Actions app id: $APP_ID"
@@ -60,11 +65,6 @@ else
   echo "== creating ruleset"
   echo "$BODY" | gh api -X POST "repos/$REPO/rulesets" --input - >/dev/null
 fi
-
-echo "== labels"
-gh label create review-passed      --repo "$REPO" --color 2da44e --description "The review check passed" --force
-gh label create needs-confirmation --repo "$REPO" --color d29922 --description "New powers: waiting for the author's fused: confirm" --force
-gh label create review-failed      --repo "$REPO" --color cf222e --description "The review check failed" --force
 
 cat <<EOF
 

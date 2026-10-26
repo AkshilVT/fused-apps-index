@@ -1,0 +1,11 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/tidy-notes.json",
+      "status": "added"
+    }
+  ],
+  "title": "List gitattributes-plain",
+  "body": ""
+}
