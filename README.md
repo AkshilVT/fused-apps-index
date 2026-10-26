@@ -28,6 +28,11 @@ it. Every such pull request runs the `review` check:
    reviewer. Nothing overrules these.
 6. **Claude's review.** The whole app on its first listing, the change since
    the last approved version after that. An error or a timeout is a fail.
+   *For now no Anthropic key is set*, so this step is skipped (not failed):
+   the comment says "Claude's review is off (no key set); only the fixed rules
+   ran.", the block carries `"claude": "skipped"`, What's new is taken from the
+   request's "What changed" text (else its first line, else its title), and new
+   powers come from the fixed scan alone. Setting the key turns the step on.
 7. **New powers.** If a release lets the app do something new (talk to a new
    place on the internet, touch files outside its folder, install packages,
    run in the background, give Claude tools), the check passes but waits for
@@ -37,14 +42,18 @@ it. Every such pull request runs the `review` check:
    its own.
 
 Then, every 10 minutes, a job writes the release's plain-language "What's
-new" into `reviews/<slug>.json`.
+new" into `reviews/<slug>.json` on the **`reviews` branch**. `main` is fully
+protected (no bypass, admins included), so the bot never writes it; the
+`reviews/` folder on `main` holds hand-written entries and is the fallback
+for a slug the branch doesn't have yet. Readers take the branch first.
 
 ## Files
 
 | Path | What | Who changes it |
 |---|---|---|
 | `apps/<slug>.json` | One listed app (the row) | Authors, through fused, via the review check |
-| `reviews/<slug>.json` | Each approved release's What's new, newest first | The review bot only, after a merge |
+| `reviews/<slug>.json` on the `reviews` branch | Each approved release's What's new, newest first | The review bot only, after a merge (plain push; the branch holds only `reviews/`) |
+| `reviews/<slug>.json` on `main` | Hand entries (the fallback) | Fused maintainers |
 | `blocklist.json` | Releases pulled after approval (`hard` stops the app, `soft` pauses updates) | Fused maintainers, human-reviewed PRs |
 | `collections.json` | Featured apps and shelves | Fused maintainers |
 | `categories.json` | The Marketplace's categories | Fused maintainers |
@@ -77,6 +86,9 @@ A block-list entry: `{"slug", "commit", "level": "hard" | "soft", "reason",
   that `scripts/review/rules.py` is a verbatim copy of
   `fused_render/contrib/review_rules.py`. Change the rules there, then copy.
 - One-time setup: `scripts/setup_ruleset.sh` (ruleset, auto-merge, labels),
-  then `gh secret set ANTHROPIC_API_KEY`.
+  then, when the owner is ready to turn Claude's review on,
+  `gh secret set ANTHROPIC_API_KEY`. Without it every non-AI step still runs
+  and clean listings still merge. The required check `review` is a commit
+  status the check sets on the pull request's head.
 - The check never runs code from a pull request or from an app: both are
   read as data. Keep it that way.

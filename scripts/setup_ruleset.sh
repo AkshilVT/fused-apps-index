@@ -7,10 +7,15 @@
 #    after merge.
 # 2. The review labels.
 # 3. The `main` ruleset: pull request required, required status check
-#    `review` (from GitHub Actions), no force pushes or deletion. Admins are
-#    bound by it (no admin bypass). The ONLY bypass actor is the GitHub
-#    Actions app, used by the reviews-sync job's bot commits to reviews/.
-# 4. Reminder: the ANTHROPIC_API_KEY secret.
+#    `review` (the commit status check.py sets on the PR head, from GitHub
+#    Actions), squash only, no force pushes or deletion. NO bypass actors,
+#    admins included. GitHub refuses the GitHub Actions app as a bypass actor
+#    on a user-owned repo ("Actor GitHub Actions integration must be part of
+#    the ruleset source or owner organization"), so the reviews-sync job does
+#    not write main: it pushes review entries to the `reviews` branch, which
+#    this ruleset does not cover (~DEFAULT_BRANCH only).
+# 4. Reminder: the ANTHROPIC_API_KEY secret (optional for now; without it
+#    Claude's review is skipped and only the fixed rules run).
 set -euo pipefail
 
 REPO="${1:-vasu2001/fused-apps-index}"
@@ -38,9 +43,7 @@ BODY="$(cat <<JSON
   "target": "branch",
   "enforcement": "active",
   "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
-  "bypass_actors": [
-    {"actor_id": $APP_ID, "actor_type": "Integration", "bypass_mode": "always"}
-  ],
+  "bypass_actors": [],
   "rules": [
     {"type": "deletion"},
     {"type": "non_fast_forward"},
@@ -68,9 +71,10 @@ fi
 
 cat <<EOF
 
-Done. One thing left, which this script can't do for you:
+Done. When you want Claude's review on, set the key (this script can't):
 
   gh secret set ANTHROPIC_API_KEY --repo $REPO
 
-(paste the key when asked). Until it is set every review fails at step 6.
+Until then the check skips Claude's review (it says so on each request) and
+runs every other step; clean listings still merge.
 EOF
