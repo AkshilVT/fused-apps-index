@@ -18,7 +18,9 @@ one-line plain reason; an error anywhere is a fail too (M3).
     7 New powers  `rules.powers` ∪ the model's list: non-empty passes the
               check but waits for `fused: confirm <sha>` (no auto-merge)
     8 Result  ONE comment with the `<!-- fused-review {...} -->` block,
-              labels, and `gh pr merge --squash --auto` on a clean pass
+              labels, the `review` commit status on the PR head (pending
+              while running; success on pass/needs-confirmation; failure),
+              and `gh pr merge --squash --auto` on a clean pass
 
 Pull requests that change anything but one row (block list, collections,
 categories, the check itself) are maintainer changes: from an index admin
@@ -458,6 +460,26 @@ def disable_auto_merge(repo: str, number: int) -> None:
     gh_cli("pr", "merge", str(number), "--repo", repo, "--disable-auto")
 
 
+STATUS_TEXT = {"pass": "Review passed", "needs-confirmation":
+               "Review passed; new powers wait for the author's confirmation",
+               "fail": "Review failed"}
+
+
+def status_for(gh: GitHub, repo: str, sha: str, state: str, text: str) -> None:
+    """The `review` commit status on the PR HEAD. A pull_request_target run
+    belongs to the base branch's commit, so its own check run may not sit on
+    the head; this status always does, and the ruleset requires it. Pending
+    first, so a run that dies midway leaves the head blocked (M3)."""
+    url = None
+    if os.environ.get("GITHUB_RUN_ID"):
+        url = (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{repo}"
+               f"/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+    try:
+        gh.set_status(repo, sha, state, text, target_url=url)
+    except GitHubError as e:
+        print(f"could not set the review status: {e}", file=sys.stderr)
+
+
 # -------------------------------------------------------------------- main
 
 
@@ -469,8 +491,10 @@ def main() -> int:
     src = LiveSource(gh, repo, event)
     number = src.pr["number"]
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    head = src.pr["head_sha"]
     # A new push must never ride an earlier pass's auto-merge.
     disable_auto_merge(repo, number)
+    status_for(gh, repo, head, "pending", "Fused is reviewing this listing")
     try:
         result = run_steps(src, Index(root))
     except Exception as e:  # noqa: BLE001 — fail closed on anything
@@ -485,7 +509,10 @@ def main() -> int:
         set_label(gh, repo, number, None if result.get("kind") == "maintainer" else label)
     except GitHubError as e:
         print(f"could not post the result: {e}", file=sys.stderr)
+        status_for(gh, repo, head, "failure", "The review could not post its result")
         return 1
+    status_for(gh, repo, head, "failure" if result["status"] == "fail" else "success",
+               STATUS_TEXT[result["status"]])
     if result["status"] == "pass" and result.get("kind") != "maintainer":
         if not enable_auto_merge(repo, number, result["sha"]):
             print("auto-merge could not be enabled; a maintainer can merge", file=sys.stderr)

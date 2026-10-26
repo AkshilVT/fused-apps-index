@@ -5,7 +5,9 @@
 # it points at is ever checked out, imported or run: both are read as data
 # through the API and codeload. Never add `ref:` to the checkout below.
 #
-# The required status check is the `review` job. The `pull_request` event
+# The required status check `review` is the commit status check.py sets on
+# the PR HEAD (a pull_request_target run belongs to the base commit, so the
+# job's own check run may not land on the head). The `pull_request` event
 # must never be added to this file: a job skipped by `if:` reports a
 # "skipped" check named `review`, which branch protection counts as passing.
 # The fixtures run on pull requests from fixtures.yml instead.
@@ -36,6 +38,7 @@ jobs:
       contents: write        # enabling auto-merge needs merge rights
       pull-requests: write   # the comment, labels, auto-merge
       issues: write          # labels live on the issue side
+      statuses: write        # the `review` status on the PR head (required check)
     steps:
       - uses: actions/checkout@v4
         with:

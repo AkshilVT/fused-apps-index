@@ -176,6 +176,14 @@ class GitHub:
                      f"/repos/{repo}/issues/{int(number)}/labels/{_q(label)}",
                      ok=(200, 204, 404))
 
+    def set_status(self, repo: str, sha: str, state: str, description: str,
+                   context: str = "review", target_url: str | None = None) -> None:
+        """A commit status on `sha` (state pending | success | failure | error)."""
+        body = {"state": state, "context": context, "description": description[:140]}
+        if target_url:
+            body["target_url"] = target_url
+        self.request("POST", f"/repos/{repo}/statuses/{_q(sha)}", body=body)
+
     def react(self, repo: str, comment_id: int, content: str = "+1") -> None:
         self.request("POST", f"/repos/{repo}/issues/comments/{int(comment_id)}/reactions",
                      body={"content": content}, ok=(200, 201))
