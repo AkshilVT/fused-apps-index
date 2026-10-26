@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# One-time setup of the index repo, run by the owner (needs admin on it):
+#
+#   scripts/setup_ruleset.sh [owner/name]     (default vasu2001/fused-apps-index)
+#
+# 1. Repo settings: squash merges only, auto-merge allowed, branches deleted
+#    after merge.
+# 2. The `main` ruleset: pull request required, required status check
+#    `review` (from GitHub Actions), no force pushes or deletion. Admins are
+#    bound by it (no admin bypass). The ONLY bypass actor is the GitHub
+#    Actions app, used by the reviews-sync job's bot commits to reviews/.
+# 3. The review labels.
+# 4. Reminder: the ANTHROPIC_API_KEY secret.
+set -euo pipefail
+
+REPO="${1:-vasu2001/fused-apps-index}"
+
+echo "== repo settings ($REPO)"
+gh api -X PATCH "repos/$REPO" \
+  -F allow_auto_merge=true \
+  -F allow_squash_merge=true \
+  -F allow_merge_commit=false \
+  -F allow_rebase_merge=false \
+  -F delete_branch_on_merge=true >/dev/null
+
+APP_ID="$(gh api /apps/github-actions --jq .id)"   # 15368 on github.com
+echo "== GitHub Actions app id: $APP_ID"
+
+EXISTING="$(gh api "repos/$REPO/rulesets" --jq '.[] | select(.name=="main") | .id' || true)"
+BODY="$(cat <<JSON
+{
+  "name": "main",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+  "bypass_actors": [
+    {"actor_id": $APP_ID, "actor_type": "Integration", "bypass_mode": "always"}
+  ],
+  "rules": [
+    {"type": "deletion"},
+    {"type": "non_fast_forward"},
+    {"type": "pull_request", "parameters": {
+      "required_approving_review_count": 0,
+      "dismiss_stale_reviews_on_push": false,
+      "require_code_owner_review": false,
+      "require_last_push_approval": false,
+      "required_review_thread_resolution": false,
+      "allowed_merge_methods": ["squash"]}},
+    {"type": "required_status_checks", "parameters": {
+      "strict_required_status_checks_policy": false,
+      "required_status_checks": [{"context": "review", "integration_id": $APP_ID}]}}
+  ]
+}
+JSON
+)"
+if [ -n "$EXISTING" ]; then
+  echo "== updating ruleset $EXISTING"
+  echo "$BODY" | gh api -X PUT "repos/$REPO/rulesets/$EXISTING" --input - >/dev/null
+else
+  echo "== creating ruleset"
+  echo "$BODY" | gh api -X POST "repos/$REPO/rulesets" --input - >/dev/null
+fi
+
+echo "== labels"
+gh label create review-passed      --repo "$REPO" --color 2da44e --description "The review check passed" --force
+gh label create needs-confirmation --repo "$REPO" --color d29922 --description "New powers: waiting for the author's fused: confirm" --force
+gh label create review-failed      --repo "$REPO" --color cf222e --description "The review check failed" --force
+
+cat <<EOF
+
+Done. One thing left, which this script can't do for you:
+
+  gh secret set ANTHROPIC_API_KEY --repo $REPO
+
+(paste the key when asked). Until it is set every review fails at step 6.
+EOF

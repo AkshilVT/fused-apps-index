@@ -1,0 +1,16 @@
+{
+  "slug": "acme-tool",
+  "repo": "acme/acme-tool",
+  "branch": "main",
+  "commit": "34ed6ed19c05c4a957ce4a349cd736e2248792ec",
+  "name": "Acme Tool",
+  "description": "The acme-tool app.",
+  "category": "productivity",
+  "tags": [
+    "example"
+  ],
+  "icon": null,
+  "preview": null,
+  "remix_of": null,
+  "version": "1.0.0"
+}

@@ -1,0 +1,16 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/map-tiles.json",
+      "status": "added"
+    }
+  ],
+  "title": "List fork-only-commit",
+  "body": "",
+  "github": {
+    "compare": {
+      "alice/map-tiles@880ce5d3e45e9694251620aae7aa46cd5c065abe": "diverged"
+    }
+  }
+}

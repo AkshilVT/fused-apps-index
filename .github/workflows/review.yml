@@ -1,0 +1,120 @@
+# The review check and its two helpers (contract §18.2).
+#
+# SECURITY: `pull_request_target` runs THIS file and scripts/ from the BASE
+# branch with a write token. Nothing from the pull request or from the app
+# it points at is ever checked out, imported or run: both are read as data
+# through the API and codeload. Never add `ref:` to the checkout below.
+#
+# The required status check is the `review` job. The `pull_request` event
+# must never be added to this file: a job skipped by `if:` reports a
+# "skipped" check named `review`, which branch protection counts as passing.
+# The fixtures run on pull requests from fixtures.yml instead.
+name: review
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  review:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: write        # enabling auto-merge needs merge rights
+      pull-requests: write   # the comment, labels, auto-merge
+      issues: write          # labels live on the issue side
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --disable-pip-version-check --no-input anthropic
+      - name: Review
+        run: python -I scripts/review/check.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  confirm:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, 'fused: confirm')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: review-${{ github.event.issue.number }}-confirm
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Confirm
+        run: python -I scripts/review/confirm.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+
+  reviews-sync:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: reviews-sync
+      cancel-in-progress: false
+    permissions:
+      contents: write        # the bot commit to reviews/ (ruleset bypass)
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Sync review entries
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python -I scripts/review/reviews_sync.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  fixtures:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 -I scripts/review/run_fixtures.py

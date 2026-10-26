@@ -1,0 +1,17 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/refused.json",
+      "status": "added"
+    }
+  ],
+  "title": "List refusal",
+  "body": "",
+  "model": [
+    {
+      "text": "",
+      "stop_reason": "refusal"
+    }
+  ]
+}

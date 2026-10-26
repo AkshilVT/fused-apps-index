@@ -1,0 +1,25 @@
+# The fixtures on every pull request (the push-to-main run is the `fixtures`
+# job in review.yml). Separate file on purpose: see the note at the top of
+# review.yml. `pull_request` (not _target): a fork's PR runs its own
+# scripts with a read-only token and no secrets, which is how a change to
+# the check is tested before it is merged.
+name: fixtures
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 -I scripts/review/run_fixtures.py

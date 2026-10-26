@@ -1,0 +1,11 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/npm-thing.json",
+      "status": "added"
+    }
+  ],
+  "title": "List install-hook",
+  "body": ""
+}

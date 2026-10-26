@@ -1,0 +1,16 @@
+{
+  "slug": "map-tiles",
+  "repo": "alice/map-tiles",
+  "branch": "main",
+  "commit": "880ce5d3e45e9694251620aae7aa46cd5c065abe",
+  "name": "Map Tiles",
+  "description": "The map-tiles app.",
+  "category": "productivity",
+  "tags": [
+    "example"
+  ],
+  "icon": null,
+  "preview": null,
+  "remix_of": null,
+  "version": "1.0.0"
+}

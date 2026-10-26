@@ -1,0 +1,16 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/chatty.json",
+      "status": "added"
+    }
+  ],
+  "title": "List invalid-answer",
+  "body": "",
+  "model": [
+    {
+      "text": "Looks fine to me! Verdict: pass."
+    }
+  ]
+}

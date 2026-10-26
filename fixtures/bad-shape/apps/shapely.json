@@ -1,0 +1,17 @@
+{
+  "slug": "shapely",
+  "repo": "alice/shapely",
+  "branch": "main",
+  "commit": "5097b578f26a523a737d6d0d10932ac3e0badc19",
+  "name": "Shapely",
+  "description": "The shapely app.",
+  "category": "productivity",
+  "tags": [
+    "example"
+  ],
+  "icon": null,
+  "preview": null,
+  "remix_of": null,
+  "version": "1.0.0",
+  "homepage": "https://example.com"
+}

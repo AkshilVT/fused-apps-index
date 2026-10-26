@@ -1,0 +1,14 @@
+{
+  "featured": [
+    "sine-starter"
+  ],
+  "shelves": [
+    {
+      "id": "starters",
+      "title": "Starters",
+      "slugs": [
+        "sine-starter"
+      ]
+    }
+  ]
+}

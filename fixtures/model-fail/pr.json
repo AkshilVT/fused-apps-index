@@ -1,0 +1,23 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/keylogger-lite.json",
+      "status": "added"
+    }
+  ],
+  "title": "List model-fail",
+  "body": "",
+  "model": [
+    {
+      "answer": {
+        "verdict": "fail",
+        "reasons": [
+          "Sends everything you type to collect.example.com."
+        ],
+        "whats_new": "A note box.",
+        "new_powers": []
+      }
+    }
+  ]
+}

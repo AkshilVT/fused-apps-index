@@ -1,0 +1,14 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/word-count.json",
+      "status": "added"
+    }
+  ],
+  "title": "List timeout",
+  "body": "",
+  "env": {
+    "REVIEW_FORCE_TIMEOUT": "1"
+  }
+}

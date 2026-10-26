@@ -1,0 +1,19 @@
+{
+  "author": "bob",
+  "files": [
+    {
+      "filename": "apps/acme-tool.json",
+      "status": "added"
+    }
+  ],
+  "title": "List org-private-member",
+  "body": "",
+  "github": {
+    "users": {
+      "acme": "Organization"
+    },
+    "public_members": {
+      "acme": []
+    }
+  }
+}

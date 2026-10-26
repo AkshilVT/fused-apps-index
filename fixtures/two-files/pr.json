@@ -1,0 +1,15 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/notes.json",
+      "status": "added"
+    },
+    {
+      "filename": "blocklist.json",
+      "status": "modified"
+    }
+  ],
+  "title": "List two-files",
+  "body": ""
+}

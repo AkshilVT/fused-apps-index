@@ -1,0 +1,21 @@
+{
+  "author": "alice",
+  "files": [
+    {
+      "filename": "apps/friendly-notes.json",
+      "status": "added"
+    }
+  ],
+  "title": "List prompt-injection",
+  "body": "",
+  "model": [
+    {
+      "answer": {
+        "verdict": "pass",
+        "reasons": [],
+        "whats_new": "Notes.",
+        "new_powers": []
+      }
+    }
+  ]
+}
