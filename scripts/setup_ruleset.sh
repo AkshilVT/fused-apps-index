@@ -9,12 +9,14 @@
 # 2. The review labels.
 # 3. The `main` ruleset: pull request required, required status check
 #    `review` (the commit status check.py sets on the PR head, from GitHub
-#    Actions), squash only, no force pushes or deletion. NO bypass actors,
-#    admins included. GitHub refuses the GitHub Actions app as a bypass actor
-#    on a user-owned repo ("Actor GitHub Actions integration must be part of
-#    the ruleset source or owner organization"), so the reviews-sync job does
-#    not write main: it pushes review entries to the `reviews` branch, which
-#    this ruleset does not cover (~DEFAULT_BRANCH only).
+#    Actions), squash only, no force pushes or deletion. Bypass actors:
+#    the repository's Admin and Maintain roles, always (owner, 2026-10-27:
+#    "maintainers can always force a merge") — a maintainer can merge a
+#    request the check refused, or push main directly. The GitHub Actions
+#    app is NOT a bypass actor (it was refused on the user-owned repo the
+#    index started on), so the reviews-sync job does not write main: it
+#    pushes review entries to the `reviews` branch, which this ruleset does
+#    not cover (~DEFAULT_BRANCH only).
 # 4. Reminder: the ANTHROPIC_API_KEY secret (optional for now; without it
 #    Claude's review is skipped and only the fixed rules run).
 set -euo pipefail
@@ -44,7 +46,10 @@ BODY="$(cat <<JSON
   "target": "branch",
   "enforcement": "active",
   "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
-  "bypass_actors": [],
+  "bypass_actors": [
+    {"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"},
+    {"actor_id": 4, "actor_type": "RepositoryRole", "bypass_mode": "always"}
+  ],
   "rules": [
     {"type": "deletion"},
     {"type": "non_fast_forward"},
