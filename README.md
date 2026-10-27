@@ -18,7 +18,10 @@ it. Every such pull request runs the `review` check:
    organization that does). Private org membership can't be seen by the check;
    make it public to list an org's app.
 3. **Shape.** The listing has exactly the fields below, a free name, a repo
-   not listed under another name, and follows the repo's main branch.
+   not listed under another name, and follows the repo's main branch. Its
+   slug is the app's `fused-app-id`: the entry page at that version (the
+   first top-level `.html` with `<meta name="fused-app">`) must declare
+   `<meta name="fused-app-id" content="<slug>">`.
 4. **Which commit.** The version is on the author's main branch (a version
    that exists only in someone else's copy is refused).
 5. **Fixed rules.** The app at that version has none of: code downloaded and
@@ -30,13 +33,16 @@ it. Every such pull request runs the `review` check:
    the last approved version after that. An error or a timeout is a fail.
    *For now no Anthropic key is set*, so this step is skipped (not failed):
    the comment says "Claude's review is off (no key set); only the fixed rules
-   ran.", the block carries `"claude": "skipped"`, What's new is taken from the
+   ran.", the block (and later the release's review entry) carries
+   `"claude": "skipped"`, What's new is taken from the
    request's "What changed" text (else its first line, else its title), and new
    powers come from the fixed scan alone. Setting the key turns the step on.
 7. **New powers.** If a release lets the app do something new (talk to a new
    place on the internet, touch files outside its folder, install packages,
-   run in the background, give Claude tools), the check passes but waits for
-   the author to confirm in fused (it comments `fused: confirm <sha>`).
+   run in the background, give Claude tools), the review passes but the
+   required `review` status stays pending, so the request can't be merged,
+   until the author confirms in fused (it comments `fused: confirm <sha>`);
+   the confirmation turns the status green.
 8. **Result.** One comment on the pull request, with a machine-readable
    `<!-- fused-review {...} -->` block fused reads. Nothing merges on its
    own: a Fused maintainer merges the pull request once the check is green.
@@ -63,24 +69,39 @@ for a slug the branch doesn't have yet. Readers take the branch first.
 A row:
 
 ```json
-{"slug": "sine-starter", "repo": "vasu2001/sine-starter", "branch": "main",
+{"slug": "sine-starter-82de2580", "repo": "vasu2001/sine-starter", "branch": "main",
  "commit": "<40 hex>", "name": "Sine Starter", "description": "…",
  "category": "starters", "tags": ["starter"], "icon": null,
  "preview": "preview.png", "remix_of": null, "version": "1.0.1"}
 ```
 
-Every key is required and no others are allowed. `slug` is the file name
-(`[a-z0-9][a-z0-9-]{1,63}`); `icon` and `preview` are image paths inside the
+Every key is required and no others are allowed. `slug` is the app's
+`fused-app-id` and the file name (`<kebab name>-<8 hex>`, fused stamps it in
+the app's entry page when the app is created or first exported, and it never
+changes); the check compares it with the entry page at `commit`. Rows listed
+before 2026-10-27 (`simple-calc`, `sine-starter`) predate this and stay as
+they are until they are published again from fused. `icon` and `preview` are image paths inside the
 app's repo at `commit`, or null; `remix_of` is another listed slug, or null.
 
-A block-list entry: `{"slug", "commit", "level": "hard" | "soft", "reason",
-"what_to_do", "at"}`.
+The block list: `{"blocked": [entry]}`, each entry exactly `{"slug",
+"commit" (40 hex), "level": "hard" | "soft", "reason", "what_to_do", "at"
+(like 2026-10-27T09:00:00Z)}`. The check refuses a request whose
+`blocklist.json` breaks this, and the fixtures run checks the file on every
+pull request; if a broken one ever reached `main`, the backend would keep
+serving the last good list and flag it stale.
 
 ## For maintainers
 
 - Changes to anything but one row are maintainer changes: the check passes
   them for index admins and maintainers ("a person reviews and merges this")
-  and never merges them on its own. Anyone else's fail.
+  and never merges them on its own. Anyone else's fail. A maintainer request
+  still gets its `blocklist.json` schema-checked, and a listing it also
+  changes (one per request) gets the full review like an author's; a
+  maintainer may delist any listing.
+- Publishing rights follow the repo's identity: GitHub's answer for the repo
+  must carry the listing's own name (a renamed or moved repo is refused until
+  a maintainer moves the listing), and a repo re-made under a listed name
+  (another numeric id than the slug's earlier releases) is refused.
 - `python3 -I scripts/review/run_fixtures.py` runs every fixture (no network,
   no secrets). With `FUSED_RENDER_SRC=<fused-render checkout>` it also checks
   that `scripts/review/rules.py` is a verbatim copy of

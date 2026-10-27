@@ -47,9 +47,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import check  # noqa: E402
+import app_id  # noqa: E402
 import claude_review  # noqa: E402
 import confirm  # noqa: E402
 import fetch_app  # noqa: E402
+import reviews_sync  # noqa: E402
+import rules  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 FIXTURES = os.path.join(ROOT, "fixtures")
@@ -120,9 +123,19 @@ class FixtureSource:
         return login.lower() in self.maintainers
 
     def repo_meta(self, repo):
+        # GitHub's answer for a repo that is where its name says, owned by
+        # the account before the slash; a fixture overrides any key (a
+        # moved repo answers another full_name), or names it null (gone).
+        meta = {"default_branch": "main", "private": False, "full_name": repo,
+                "owner": {"login": repo.split("/", 1)[0]}, "id": None}
         if repo in self.repos:
-            return self.repos[repo]
-        return {"default_branch": "main", "private": False}
+            if self.repos[repo] is None:
+                return None
+            meta.update(self.repos[repo])
+        return meta
+
+    def review_entries(self, slug):
+        return (self.spec.get("reviews") or {}).get(slug) or []
 
     def compare_status(self, repo, base, head):
         return self.compare.get(f"{repo}@{head}", "behind")
@@ -286,6 +299,19 @@ def self_checks() -> list:
         except fetch_app.FetchError:
             pass
 
+    # Binary entries carry their evidence: a real picture passes, a "picture"
+    # that is a zip (or has one appended) fails, and a signature split
+    # across two streamed chunks is still found.
+    png = b"\x89PNG\r\n\x1a\n" + b"\0" * 40
+    for name, data, want in [("ok.png", png, False), ("zip.png", b"PK\x03\x04" + b"\0" * 40, True),
+                             ("tail.png", png + b"PK\x05\x06\0\0", True)]:
+        hits = rules.hard_hits([fetch_app._entry(name, data, "100644")])
+        if bool(hits) is not want:
+            bad.append(f"binary evidence: {name} hits={hits}")
+    big = io.BytesIO(png + b"\0" * (1024 * 1024 - len(png) - 2) + b"PK\x03\x04" + b"\0" * 10)
+    if fetch_app._stream_sniff(big) != {"head": (png + b"\0" * 64)[:64], "zip": True}:
+        bad.append("stream sniff misses a zip signature split across chunks")
+
     # The diff: a changed line and a new file.
     d = fetch_app.diff_trees([{"path": "a.py", "text": "x = 1", "mode": "100644"}],
                              [{"path": "a.py", "text": "x = 2", "mode": "100644"},
@@ -293,6 +319,32 @@ def self_checks() -> list:
     for want in ("-x = 1", "+x = 2", "new file mode 100644", "+++ b/b.py"):
         if want not in d:
             bad.append(f"diff lacks {want!r}")
+
+    # The index's OWN block list matches its schema. fixtures.yml runs this
+    # on every pull request with the request's own files, so a maintainer's
+    # broken blocklist.json is caught there too.
+    with open(os.path.join(ROOT, "blocklist.json"), encoding="utf-8") as fh:
+        for p in check.blocklist_problems(fh.read()):
+            bad.append(f"blocklist.json: {p}")
+
+    # New powers keep the required status pending until the confirm; only
+    # a confirmed (`pass`) block becomes a review entry.
+    if check.STATUS_STATE != {"pass": "success", "needs-confirmation": "pending",
+                              "fail": "failure"}:
+        bad.append(f"status map: {check.STATUS_STATE}")
+    head = "d" * 40
+    for block, want in [({"sha": head, "status": "pass"}, True),
+                        ({"sha": head, "status": "needs-confirmation"}, False),
+                        ({"sha": "e" * 40, "status": "pass"}, False),
+                        (None, False)]:
+        if reviews_sync.accepts(block, head) is not want:
+            bad.append(f"reviews_sync.accepts({block}) is not {want}")
+    entry = reviews_sync.entry_for(
+        row={"commit": head}, pr={"number": 7, "merged_at": "2026-10-27T00:00:00Z"},
+        block={"whats_new": "x", "new_powers": [], "claude": "skipped"}, previous=[],
+        credits=[], repo_id=42)
+    if entry.get("claude") != "skipped" or entry.get("repo_id") != 42:
+        bad.append(f"review entry lacks the claude marker or repo id: {entry}")
 
     # The model answer: strict.
     if claude_review.parse_answer("Sure! {\"verdict\": \"pass\"}") is not None:
@@ -311,6 +363,36 @@ def rules_copy_check() -> str | None:
     with open(upstream, "rb") as a, open(os.path.join(HERE, "rules.py"), "rb") as b:
         if a.read() != b.read():
             return f"rules.py differs from {upstream}: copy it over verbatim"
+    return "ok"
+
+
+def app_id_parity_check() -> str | None:
+    """`app_id.py` copies fused-render's id rule: same regexes, same answers.
+    Only with FUSED_RENDER_SRC (a local fused-render checkout)."""
+    src = os.environ.get("FUSED_RENDER_SRC")
+    if not src:
+        return None
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "fr_app_id", os.path.join(src, "fused_render", "app_id.py"))
+    fr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fr)
+    for name in ("ID_RE", "_TAG_RE", "_CONTENT_RE"):
+        if getattr(fr, name).pattern != getattr(app_id, name).pattern:
+            return f"app_id.{name} differs from fused_render/app_id.py"
+    import ast
+    with open(os.path.join(src, "fused_render", "app_listing.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    marker = next((n.value.args[0].value for n in ast.walk(tree)
+                   if isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "_FUSED_META_RE"
+                                                        for t in n.targets)), None)
+    if marker != app_id._FUSED_META_RE.pattern:
+        return "app_id._FUSED_META_RE differs from fused_render/app_listing.py"
+    for head in ('<meta name="fused-app-id" content="my-app-82de2580">',
+                 "<meta content='x-0123abcd' name=fused-app-id>",
+                 '<meta name="fused-app-id" content="Bad_Id">', "<head></head>"):
+        if fr.id_from_text(head) != app_id.id_from_text(head):
+            return f"id_from_text disagrees on {head!r}"
     return "ok"
 
 
@@ -344,6 +426,14 @@ def main() -> int:
         print(f"FAIL  {copy}")
     else:
         print("ok    rules.py is a verbatim copy of review_rules.py")
+    parity = app_id_parity_check()
+    if parity is None:
+        print("skip  app_id.py parity check (set FUSED_RENDER_SRC)")
+    elif parity != "ok":
+        failures += 1
+        print(f"FAIL  {parity}")
+    else:
+        print("ok    app_id.py matches fused_render/app_id.py + the entry marker")
     print(f"\n{len(names)} fixtures, {failures} failure(s)")
     return 1 if failures else 0
 
