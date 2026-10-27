@@ -40,8 +40,8 @@ one-line plain reason; an error anywhere is a fail too (M3).
               the earlier `gh pr merge --auto` on a clean pass is gone).
 
 Pull requests that change anything but one row (block list, collections,
-categories, the check itself) are maintainer changes: from anyone but an
-index admin or maintainer they fail step 1. From a maintainer: a changed
+categories, the check itself) are maintainer changes: from anyone without
+write access to the index they fail step 1. From a maintainer: a changed
 `blocklist.json` must match its schema (step 3); an `apps/<slug>.json` the
 request also changes runs steps 2-7 like an author's (one row per request;
 a maintainer may delist any row); the rest passes with "a person reviews
@@ -81,7 +81,10 @@ ASSET_RE = re.compile(r"^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[^\\\0\n]{1,200}"
                       r"\.(?:png|jpe?g|gif|webp|svg|avif)$", re.I)
 BLOCK_RE = re.compile(r"<!-- fused-review (\{.*?\}) -->", re.S)
 LABELS = ("review-passed", "needs-confirmation", "review-failed")
-MAINTAINER_ROLES = {"admin", "maintain"}
+# Anyone with write access to the index is a maintainer (owner, 2026-10-27:
+# "simplify it" — the index is an org repo now, and write access there IS
+# membership). Everyone else is an author: one row per request, steps 2-7.
+MAINTAINER_ROLES = {"admin", "maintain", "write"}
 CLAUDE_OFF = "Claude's review is off (no key set); only the fixed rules ran."
 CRASH_REASON = ("The review ran into a problem and could not finish. It runs again "
                 "when the listing is updated.")
