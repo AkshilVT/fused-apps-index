@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time setup of the index repo, run by the owner (needs admin on it):
 #
-#   scripts/setup_ruleset.sh [owner/name]     (default vasu2001/fused-apps-index)
+#   scripts/setup_ruleset.sh [owner/name]     (default fusedio/fused-apps-index)
 #
 # 1. Repo settings: squash merges only, no auto-merge (a maintainer merges
 #    every pull request by hand; owner, 2026-10-26), branches deleted after
@@ -19,7 +19,7 @@
 #    Claude's review is skipped and only the fixed rules run).
 set -euo pipefail
 
-REPO="${1:-vasu2001/fused-apps-index}"
+REPO="${1:-fusedio/fused-apps-index}"
 
 echo "== repo settings ($REPO)"
 gh api -X PATCH "repos/$REPO" \
