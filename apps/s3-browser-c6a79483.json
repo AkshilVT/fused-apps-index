@@ -1,0 +1,20 @@
+{
+  "slug": "s3-browser-c6a79483",
+  "repo": "amanbagrecha/s3-browser",
+  "branch": "main",
+  "commit": "e081c283635959beb7399b31412b411c413b12f3",
+  "name": "S3 Browser",
+  "description": "A full S3 client in a view: browse buckets, navigate folders, preview objects, upload/download/rename/delete, manage tags, versions, and bucket policy — public buckets or your own AWS account.",
+  "category": "productivity",
+  "tags": [
+    "s3",
+    "aws",
+    "storage",
+    "files",
+    "cloud"
+  ],
+  "icon": "icon.svg",
+  "preview": "preview.png",
+  "remix_of": null,
+  "version": "1.0.0"
+}
