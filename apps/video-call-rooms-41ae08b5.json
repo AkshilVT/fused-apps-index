@@ -1,0 +1,17 @@
+{
+  "slug": "video-call-rooms-41ae08b5",
+  "repo": "AkshilVT/video-call-rooms",
+  "branch": "main",
+  "commit": "04319a51f726c8779180dd6aa67f996613050449",
+  "name": "Rooms",
+  "description": "lite weight metting",
+  "category": "productivity",
+  "tags": [
+    "meeting",
+    "virtual"
+  ],
+  "icon": "icon.svg",
+  "preview": "preview.png",
+  "remix_of": null,
+  "version": "0.1.0"
+}
